@@ -27,21 +27,23 @@ class PostResource(Resource):
     def get(self, post_id):
         schema = PostSchema()
         post = Post.query.get_or_404(post_id)
-        return {"post": schema.dump(user).data}
+        return {"post": schema.dump(post)}
 
     def put(self, post_id):
         schema = PostSchema(partial=True)
         post = Post.query.get_or_404(post_id)
-        post, errors = schema.load(request.json, instance=post)
-        if errors:
-            return errors, 422
+        try:
+            # instance: Optional existing instance to modify
+            post = schema.load(request.json, instance=post)
+        except marshmallow.ValidationError:
+            return 422
 
         db.session.commit()
 
-        return {"msg": "post updated", "post": schema.dump(post).data}
+        return {"msg": "post updated", "post": schema.dump(post)}
 
     def delete(self, post_id):
-        post = post.query.get_or_404(post_id)
+        post = Post.query.get_or_404(post_id)
         db.session.delete(post)
         db.session.commit()
 
@@ -71,7 +73,7 @@ class PostList(Resource):
             text = ''
 
         image = args.get('image')
-        if image is None:
+        if image.filename == '':
             return {'msg': 'you must post file.'}, 422
 
         file_name = str(int(datetime.now().timestamp() *
