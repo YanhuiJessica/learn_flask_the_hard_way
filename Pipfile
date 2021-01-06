@@ -7,6 +7,8 @@ verify_ssl = true
 yapf = "*"
 
 [packages]
+opencv-python = "*"
+email-validator = "*"
 flask = "*"
 flask-wtf = "*"
 flask-login = "*"
