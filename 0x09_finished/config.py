@@ -8,7 +8,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class BaseConfig:
     DEBUG = False
     TESTING = False
-    SECRET_KEY = 'LearnFlaskTheHardWay.by.JanCUC'
+    SECRET_KEY = 'LearnFlaskTheHardWay.by.YanhuiJessica'
     SQLALCHEMY_DATABASE_URI = 'sqlite://:memory:'
 
 
