@@ -7,12 +7,14 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from pathlib import Path
 
+from marshmallow.exceptions import ValidationError
+
 from app.post.models import Post
 from app.extensions import marshmallow, db
 from app.utils.paginate import paginate
+from app.utils.watermark import embed_watermark, extract_watermark
 
-
-class PostSchema(marshmallow.ModelSchema):
+class PostSchema(marshmallow.SQLAlchemyAutoSchema):
 
     id = marshmallow.Int(dump_only=True)
 
@@ -20,6 +22,14 @@ class PostSchema(marshmallow.ModelSchema):
         model = Post
         sql_session = db.session
 
+class PostExtract(Resource):
+
+    def get(self, post_id):
+        schema = PostSchema()
+        post = Post.query.get_or_404(post_id)
+        image_path = str(Path(current_app.config['UPLOAD_FOLDER']) / schema.dump(post)['image'])
+        e_text = extract_watermark(image_path)
+        return {"extract_text": e_text}
 
 class PostResource(Resource):
     # method_decorators = [jwt_required]
@@ -34,8 +44,9 @@ class PostResource(Resource):
         post = Post.query.get_or_404(post_id)
         try:
             # instance: Optional existing instance to modify
-            post = schema.load(request.json, instance=post)
-        except marshmallow.ValidationError:
+            update_value = schema.load(request.json, instance=post)
+            Post.query.filter_by(id=post_id).update(update_value)
+        except ValidationError:
             return 422
 
         db.session.commit()
@@ -43,15 +54,20 @@ class PostResource(Resource):
         return {"msg": "post updated", "post": schema.dump(post)}
 
     def delete(self, post_id):
+        schema = PostSchema()
         post = Post.query.get_or_404(post_id)
         db.session.delete(post)
         db.session.commit()
+
+        import os
+        os.remove(str(Path(current_app.config['UPLOAD_FOLDER']) / schema.dump(post)['image']))
 
         return {"msg": "post deleted"}
 
 
 post_parser = reqparse.RequestParser()
 post_parser.add_argument('text', type=str, location='form')
+post_parser.add_argument('watermark', type=str, location='form')
 post_parser.add_argument('image', type=FileStorage, location='files')
 
 
@@ -79,7 +95,13 @@ class PostList(Resource):
         file_name = str(int(datetime.now().timestamp() *
                             1000)) + '-' + secure_filename(image.filename)
 
-        image.save(str(Path(current_app.config['UPLOAD_FOLDER']) / file_name))
+        image_path = str(Path(current_app.config['UPLOAD_FOLDER']) / file_name)
+        image.save(image_path)
+
+        watermark = args.get('watermark')
+        if watermark:
+            embed_watermark(image_path, watermark, image_path)
+
         post = Post(user_id=current_user.id,
                     user_name=current_user.name,
                     text=text,
