@@ -19,11 +19,12 @@ $(function() {
           post.user_name +
           "</h2>" +
           "</header>" +
+          "<center>" +
           "<div>" +
           '<img class="image" src="/images/' +
           post.image +
           '">' +
-          "</div>" +
+          "</div>" + "</center>" +
           "<div>" +
           "<p>" +
           post.text +
